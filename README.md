@@ -6,7 +6,7 @@ Also a lovely [comune](http://en.wikipedia.org/wiki/Mergo) (municipality) in the
 
 ## Status
 
-It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, etc](https://github.com/imdario/mergo#mergo-in-the-wild).
+It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, etc](https://github.com/imdatngo/mergo#mergo-in-the-wild).
 
 [![GoDoc][3]][4]
 [![GoCard][5]][6]
@@ -14,26 +14,26 @@ It is ready for production use. [It is used in several projects by Docker, Googl
 [![Coverage Status][7]][8]
 [![Sourcegraph][9]][10]
 
-[1]: https://travis-ci.org/imdario/mergo.png
-[2]: https://travis-ci.org/imdario/mergo
-[3]: https://godoc.org/github.com/imdario/mergo?status.svg
-[4]: https://godoc.org/github.com/imdario/mergo
-[5]: https://goreportcard.com/badge/imdario/mergo
-[6]: https://goreportcard.com/report/github.com/imdario/mergo
-[7]: https://coveralls.io/repos/github/imdario/mergo/badge.svg?branch=master
-[8]: https://coveralls.io/github/imdario/mergo?branch=master
-[9]: https://sourcegraph.com/github.com/imdario/mergo/-/badge.svg
-[10]: https://sourcegraph.com/github.com/imdario/mergo?badge
+[1]: https://travis-ci.org/imdatngo/mergo.png
+[2]: https://travis-ci.org/imdatngo/mergo
+[3]: https://godoc.org/github.com/imdatngo/mergo?status.svg
+[4]: https://godoc.org/github.com/imdatngo/mergo
+[5]: https://goreportcard.com/badge/imdatngo/mergo
+[6]: https://goreportcard.com/report/github.com/imdatngo/mergo
+[7]: https://coveralls.io/repos/github/imdatngo/mergo/badge.svg?branch=master
+[8]: https://coveralls.io/github/imdatngo/mergo?branch=master
+[9]: https://sourcegraph.com/github.com/imdatngo/mergo/-/badge.svg
+[10]: https://sourcegraph.com/github.com/imdatngo/mergo?badge
 
 ### Latest release
 
-[Release v0.3.6](https://github.com/imdario/mergo/releases/tag/v0.3.6).
+[Release v0.3.7](https://github.com/imdatngo/mergo/releases/tag/v0.3.7).
 
 ### Important note
 
-Please keep in mind that in [0.3.2](//github.com/imdario/mergo/releases/tag/0.3.2) Mergo changed `Merge()`and `Map()` signatures to support [transformers](#transformers). An optional/variadic argument has been added, so it won't break existing code.
+Please keep in mind that in [0.3.2](//github.com/imdatngo/mergo/releases/tag/0.3.2) Mergo changed `Merge()`and `Map()` signatures to support [transformers](#transformers). An optional/variadic argument has been added, so it won't break existing code.
 
-If you were using Mergo **before** April 6th 2015, please check your project works as intended after updating your local copy with ```go get -u github.com/imdario/mergo```. I apologize for any issue caused by its previous behavior and any future bug that Mergo could cause (I hope it won't!) in existing projects after the change (release 0.2.0).
+If you were using Mergo **before** April 6th 2015, please check your project works as intended after updating your local copy with ```go get -u github.com/imdatngo/mergo```. I apologize for any issue caused by its previous behavior and any future bug that Mergo could cause (I hope it won't!) in existing projects after the change (release 0.2.0).
 
 ### Donations
 
@@ -89,11 +89,11 @@ If Mergo is useful to you, consider buying me a coffee, a beer or making a month
 
 ## Installation
 
-    go get github.com/imdario/mergo
+    go get github.com/imdatngo/mergo
 
     // use in your .go code
     import (
-        "github.com/imdario/mergo"
+        "github.com/imdatngo/mergo"
     )
 
 ## Usage
@@ -124,7 +124,7 @@ if err := mergo.Map(&dst, srcMap); err != nil {
 
 Warning: if you map a struct to map, it won't do it recursively. Don't expect Mergo to map struct members of your struct as `map[string]interface{}`. They will be just assigned as values.
 
-More information and examples in [godoc documentation](http://godoc.org/github.com/imdario/mergo).
+More information and examples in [godoc documentation](http://godoc.org/github.com/imdatngo/mergo).
 
 ### Nice example
 
@@ -133,7 +133,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/imdario/mergo"
+	"github.com/imdatngo/mergo"
 )
 
 type Foo struct {
@@ -169,7 +169,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/imdario/mergo"
+	"github.com/imdatngo/mergo"
         "reflect"
         "time"
 )
