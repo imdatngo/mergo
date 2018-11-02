@@ -26,9 +26,10 @@ func hasExportedField(dst reflect.Value) (exported bool) {
 }
 
 type Config struct {
-	Overwrite    bool
-	AppendSlice  bool
-	Transformers Transformers
+	Overwrite     bool
+	AppendSlice   bool
+	Transformers  Transformers
+	JSONTagLookup bool
 }
 
 type Transformers interface {
@@ -228,6 +229,11 @@ func WithOverride(config *Config) {
 // WithAppendSlice will make merge append slices instead of overwriting it
 func WithAppendSlice(config *Config) {
 	config.AppendSlice = true
+}
+
+// WithJSONTagLookup will make Map get fieldname by "json" tag value, empty will fallback to struct field name, "-" will skip the merge
+func WithJSONTagLookup(config *Config) {
+	config.JSONTagLookup = true
 }
 
 func merge(dst, src interface{}, opts ...func(*Config)) error {

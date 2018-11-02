@@ -11,6 +11,7 @@ package mergo
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -23,6 +24,34 @@ func changeInitialCase(s string, mapper func(rune) rune) string {
 	return string(mapper(r)) + s[n:]
 }
 
+func getJSONFieldName(field reflect.StructField) (fieldName string) {
+	if jsontag, ok := field.Tag.Lookup("json"); ok {
+		fieldName = strings.Split(jsontag, ",")[0]
+	}
+	if fieldName == "" {
+		fieldName = field.Name
+	}
+	return
+}
+
+func fieldNameByJSONTag(v reflect.Value, search string) string {
+	if search == "" {
+		return ""
+	}
+	for i, n := 0, v.NumField(); i < n; i++ {
+		vType := v.Type()
+		field := vType.Field(i)
+		if !isExported(field) {
+			continue
+		}
+		jsonname := getJSONFieldName(field)
+		if jsonname != "-" && jsonname == search {
+			return field.Name
+		}
+	}
+	return search
+}
+
 func isExported(field reflect.StructField) bool {
 	r, _ := utf8.DecodeRuneInString(field.Name)
 	return r >= 'A' && r <= 'Z'
@@ -33,6 +62,7 @@ func isExported(field reflect.StructField) bool {
 // short circuiting on recursive types.
 func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, config *Config) (err error) {
 	overwrite := config.Overwrite
+	jsontaglookup := config.JSONTagLookup
 	if dst.CanAddr() {
 		addr := dst.UnsafeAddr()
 		h := 17 * addr
@@ -56,8 +86,15 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			if !isExported(field) {
 				continue
 			}
-			fieldName := field.Name
-			fieldName = changeInitialCase(fieldName, unicode.ToLower)
+			var fieldName string
+			if jsontaglookup {
+				fieldName = getJSONFieldName(field)
+				if fieldName == "-" {
+					continue
+				}
+			} else {
+				fieldName = changeInitialCase(field.Name, unicode.ToLower)
+			}
 			if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v)) || overwrite) {
 				dstMap[fieldName] = src.Field(i).Interface()
 			}
@@ -73,7 +110,19 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 		srcMap := src.Interface().(map[string]interface{})
 		for key := range srcMap {
 			srcValue := srcMap[key]
-			fieldName := changeInitialCase(key, unicode.ToUpper)
+			var fieldName string
+			if jsontaglookup {
+				fieldName = fieldNameByJSONTag(dst, key)
+				if fieldName != "" && fieldName == key {
+					if field, ok := dst.Type().FieldByName(fieldName); ok {
+						if getJSONFieldName(field) == "-" {
+							continue
+						}
+					}
+				}
+			} else {
+				fieldName = changeInitialCase(key, unicode.ToUpper)
+			}
 			dstElement := dst.FieldByName(fieldName)
 			if dstElement == zeroValue {
 				// We discard it because the field doesn't exist.

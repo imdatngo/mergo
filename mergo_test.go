@@ -753,3 +753,59 @@ func TestMergeSliceDifferentType(t *testing.T) {
 		t.Fatal("expected an error, got nothing")
 	}
 }
+
+func TestMapWithJSONTagLookup(t *testing.T) {
+	type jsonTest struct {
+		FieldName    string `json:"field_name"`
+		JSONWithType string `json:"another_field,string"`
+		NoJSONTag    string
+		EmptyJSONTag string `json:",string"`
+		DoNotMerge   string `json:"-"`
+	}
+
+	scrMap := map[string]interface{}{
+		"field_name":    "FieldName",
+		"another_field": "JSONWithType",
+		"NoJSONTag":     "no_json_tag",
+		"EmptyJSONTag":  "empty",
+		"DoNotMerge":    "fail",
+		"-":             "tricky",
+		"non":           "exist",
+	}
+	dstStruct := jsonTest{}
+	expectStruct := jsonTest{
+		FieldName:    "FieldName",
+		JSONWithType: "JSONWithType",
+		NoJSONTag:    "no_json_tag",
+		EmptyJSONTag: "empty",
+	}
+
+	if err := Map(&dstStruct, scrMap, WithJSONTagLookup); err != nil {
+		t.FailNow()
+	}
+	if !reflect.DeepEqual(dstStruct, expectStruct) {
+		t.Fatalf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", dstStruct, expectStruct)
+	}
+
+	srcStruct := jsonTest{
+		FieldName:    "FieldName",
+		JSONWithType: "JSONWithType",
+		NoJSONTag:    "no_json_tag",
+		EmptyJSONTag: "empty",
+		DoNotMerge:   "fail",
+	}
+	dstMap := make(map[string]interface{})
+	expectMap := map[string]interface{}{
+		"field_name":    "FieldName",
+		"another_field": "JSONWithType",
+		"NoJSONTag":     "no_json_tag",
+		"EmptyJSONTag":  "empty",
+	}
+
+	if err := Map(&dstMap, srcStruct, WithJSONTagLookup); err != nil {
+		t.FailNow()
+	}
+	if !reflect.DeepEqual(dstMap, expectMap) {
+		t.Fatalf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", dstMap, expectMap)
+	}
+}
