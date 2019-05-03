@@ -8,6 +8,7 @@ package mergo
 import (
 	"io/ioutil"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -294,6 +295,7 @@ func TestSlice(t *testing.T) {
 	testSlice(t, nil, []int{1, 2, 3}, []int{1, 2, 3}, WithAppendSlice)
 	testSlice(t, []int{}, []int{1, 2, 3}, []int{1, 2, 3}, WithAppendSlice)
 	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, WithAppendSlice)
+	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, WithAppendSlice, WithOverride)
 	testSlice(t, []int{1}, []int{}, []int{1}, WithAppendSlice)
 	testSlice(t, []int{1}, nil, []int{1}, WithAppendSlice)
 }
@@ -733,24 +735,44 @@ func TestBooleanPointer(t *testing.T) {
 }
 
 func TestMergeMapWithInnerSliceOfDifferentType(t *testing.T) {
-	src := map[string]interface{}{
-		"foo": []string{"a", "b"},
+	testCases := []struct {
+		name    string
+		options []func(*Config)
+		err     string
+	}{
+		{
+			"With override and append slice",
+			[]func(*Config){WithOverride, WithAppendSlice},
+			"cannot append two slices with different type",
+		},
+		{
+			"With override and type check",
+			[]func(*Config){WithOverride, WithTypeCheck},
+			"cannot override two slices with different type",
+		},
 	}
-	dst := map[string]interface{}{
-		"foo": []int{1, 2},
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := map[string]interface{}{
+				"foo": []string{"a", "b"},
+			}
+			dst := map[string]interface{}{
+				"foo": []int{1, 2},
+			}
 
-	if err := Merge(&src, &dst, WithOverride, WithAppendSlice); err == nil {
-		t.Fatal("expected an error, got nothing")
+			if err := Merge(&src, &dst, tc.options...); err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Fatalf("expected %q, got %q", tc.err, err)
+			}
+		})
 	}
 }
 
-func TestMergeSliceDifferentType(t *testing.T) {
+func TestMergeSlicesIsNotSupported(t *testing.T) {
 	src := []string{"a", "b"}
 	dst := []int{1, 2}
 
-	if err := Merge(&src, &dst, WithOverride, WithAppendSlice); err == nil {
-		t.Fatal("expected an error, got nothing")
+	if err := Merge(&src, &dst, WithOverride, WithAppendSlice); err != ErrNotSupported {
+		t.Fatalf("expected %q, got %q", ErrNotSupported, err)
 	}
 }
 

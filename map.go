@@ -109,6 +109,7 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 	case reflect.Struct:
 		srcMap := src.Interface().(map[string]interface{})
 		for key := range srcMap {
+			config.overwriteWithEmptyValue = true
 			srcValue := srcMap[key]
 			var fieldName string
 			if jsontaglookup {
