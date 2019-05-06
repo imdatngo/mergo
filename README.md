@@ -28,7 +28,7 @@ It is ready for production use. [It is used in several projects by Docker, Googl
 
 ### Latest release
 
-[Release v0.3.7](https://github.com/imdatngo/mergo/releases/tag/v0.3.7).
+[Release v0.3.8](https://github.com/imdatngo/mergo/releases/tag/v0.3.8).
 
 ### Important note
 
