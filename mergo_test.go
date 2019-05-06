@@ -781,18 +781,21 @@ func TestMapWithJSONTagLookup(t *testing.T) {
 		FieldName    string `json:"field_name"`
 		JSONWithType string `json:"another_field,string"`
 		NoJSONTag    string
-		EmptyJSONTag string `json:",string"`
-		DoNotMerge   string `json:"-"`
+		EmptyJSONTag string  `json:",string"`
+		DoNotMerge   string  `json:"-"`
+		Pointer      *string `json:"pointer,omitempty"`
 	}
 
+	teststr := "string ptr"
 	scrMap := map[string]interface{}{
 		"field_name":    "FieldName",
 		"another_field": "JSONWithType",
 		"NoJSONTag":     "no_json_tag",
 		"EmptyJSONTag":  "empty",
-		"DoNotMerge":    "fail",
+		"DoNotMerge":    "this only takes effect when mapping struct to map",
 		"-":             "tricky",
 		"non":           "exist",
+		"pointer":       &teststr,
 	}
 	dstStruct := jsonTest{}
 	expectStruct := jsonTest{
@@ -800,6 +803,8 @@ func TestMapWithJSONTagLookup(t *testing.T) {
 		JSONWithType: "JSONWithType",
 		NoJSONTag:    "no_json_tag",
 		EmptyJSONTag: "empty",
+		DoNotMerge:   "this only takes effect when mapping struct to map",
+		Pointer:      &teststr,
 	}
 
 	if err := Map(&dstStruct, scrMap, WithJSONTagLookup); err != nil {
