@@ -24,14 +24,18 @@ func changeInitialCase(s string, mapper func(rune) rune) string {
 	return string(mapper(r)) + s[n:]
 }
 
-func getJSONFieldName(field reflect.StructField) (fieldName string) {
-	if jsontag, ok := field.Tag.Lookup("json"); ok {
-		fieldName = strings.Split(jsontag, ",")[0]
+func getJSONFieldName(field reflect.StructField) (fieldName string, opts string) {
+	if jsontag, ok := field.Tag.Lookup("json"); ok && jsontag != "" {
+		fieldName = jsontag
+		if idx := strings.Index(jsontag, ","); idx != -1 {
+			fieldName = jsontag[:idx]
+			opts = jsontag[idx+1:]
+		}
 	}
 	if fieldName == "" {
 		fieldName = field.Name
 	}
-	return
+	return fieldName, opts
 }
 
 func fieldNameByJSONTag(v reflect.Value, search string) string {
@@ -44,7 +48,7 @@ func fieldNameByJSONTag(v reflect.Value, search string) string {
 		if !isExported(field) {
 			continue
 		}
-		jsonname := getJSONFieldName(field)
+		jsonname, _ := getJSONFieldName(field)
 		if jsonname != "-" && jsonname == search {
 			return field.Name
 		}
@@ -88,8 +92,9 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			}
 			var fieldName string
 			if jsontaglookup {
-				fieldName = getJSONFieldName(field)
-				if fieldName == "-" {
+				var opts string
+				fieldName, opts = getJSONFieldName(field)
+				if fieldName == "-" || (strings.Contains(opts, "omitempty") && isEmptyValue(src.Field(i))) {
 					continue
 				}
 			} else {
@@ -114,13 +119,6 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 			var fieldName string
 			if jsontaglookup {
 				fieldName = fieldNameByJSONTag(dst, key)
-				if fieldName != "" && fieldName == key {
-					if field, ok := dst.Type().FieldByName(fieldName); ok {
-						if getJSONFieldName(field) == "-" {
-							continue
-						}
-					}
-				}
 			} else {
 				fieldName = changeInitialCase(key, unicode.ToUpper)
 			}
