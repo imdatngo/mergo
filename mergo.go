@@ -46,10 +46,7 @@ func isEmptyValue(v reflect.Value) bool {
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
-		if v.IsNil() {
-			return true
-		}
-		return isEmptyValue(v.Elem())
+		return v.IsNil()
 	case reflect.Func:
 		return v.IsNil()
 	case reflect.Invalid:
