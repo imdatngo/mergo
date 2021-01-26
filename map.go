@@ -24,7 +24,14 @@ func changeInitialCase(s string, mapper func(rune) rune) string {
 	return string(mapper(r)) + s[n:]
 }
 
-func getJSONFieldName(field reflect.StructField) (fieldName string, opts string) {
+func isEmbeddedStruct(field reflect.StructField) bool {
+	if !field.Anonymous {
+		return false
+	}
+	return (field.Type.Kind() == reflect.Struct || (field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct))
+}
+
+func getJSONTagValues(field reflect.StructField) (fieldName string, opts string) {
 	if jsontag, ok := field.Tag.Lookup("json"); ok && jsontag != "" {
 		fieldName = jsontag
 		if idx := strings.Index(jsontag, ","); idx != -1 {
@@ -42,18 +49,31 @@ func fieldNameByJSONTag(v reflect.Value, search string) string {
 	if search == "" {
 		return ""
 	}
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			newv := reflect.New(v.Type().Elem())
+			v.Set(newv)
+		}
+		v = v.Elem()
+	}
 	for i, n := 0, v.NumField(); i < n; i++ {
 		vType := v.Type()
 		field := vType.Field(i)
 		if !isExported(field) {
 			continue
 		}
-		jsonname, _ := getJSONFieldName(field)
-		if jsonname != "-" && jsonname == search {
-			return field.Name
+		if isEmbeddedStruct(field) {
+			if fieldName := fieldNameByJSONTag(v.Field(i), search); fieldName != "" {
+				return fieldName
+			}
+		} else {
+			jsonname, _ := getJSONTagValues(field)
+			if jsonname != "-" && jsonname == search {
+				return field.Name
+			}
 		}
 	}
-	return search
+	return ""
 }
 
 func isExported(field reflect.StructField) bool {
@@ -84,24 +104,44 @@ func deepMap(dst, src reflect.Value, visited map[uintptr]*visit, depth int, conf
 	switch dst.Kind() {
 	case reflect.Map:
 		dstMap := dst.Interface().(map[string]interface{})
+		embeddedMap := make(map[string]interface{})
 		for i, n := 0, src.NumField(); i < n; i++ {
 			srcType := src.Type()
 			field := srcType.Field(i)
+			fieldVal := src.Field(i)
 			if !isExported(field) {
 				continue
 			}
-			var fieldName string
-			if jsontaglookup {
-				var opts string
-				fieldName, opts = getJSONFieldName(field)
-				if fieldName == "-" || (strings.Contains(opts, "omitempty") && isEmptyValue(src.Field(i))) {
-					continue
+			if isEmbeddedStruct(field) {
+				if fieldVal.Kind() == reflect.Ptr {
+					if fieldVal.IsNil() {
+						continue
+					}
+					fieldVal = fieldVal.Elem()
+				}
+				if err = deepMap(reflect.ValueOf(embeddedMap), fieldVal, make(map[uintptr]*visit), 0, config); err != nil {
+					return
 				}
 			} else {
-				fieldName = changeInitialCase(field.Name, unicode.ToLower)
+				var fieldName string
+				if jsontaglookup {
+					var opts string
+					fieldName, opts = getJSONTagValues(field)
+					if fieldName == "-" || (strings.Contains(opts, "omitempty") && isEmptyValue(fieldVal)) {
+						continue
+					}
+				} else {
+					fieldName = changeInitialCase(field.Name, unicode.ToLower)
+				}
+				if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v)) || overwrite) {
+					dstMap[fieldName] = fieldVal.Interface()
+				}
 			}
-			if v, ok := dstMap[fieldName]; !ok || (isEmptyValue(reflect.ValueOf(v)) || overwrite) {
-				dstMap[fieldName] = src.Field(i).Interface()
+		}
+		for k, v := range embeddedMap {
+			// Same behavior as json.Marshal, ignore the embedded field on conflict
+			if _, ok := dstMap[k]; !ok {
+				dstMap[k] = v
 			}
 		}
 	case reflect.Ptr:
