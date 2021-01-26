@@ -1,7 +1,9 @@
-package mergo
+package mergo_test
 
 import (
 	"testing"
+
+	"github.com/imdatngo/mergo"
 )
 
 func TestMapInterfaceWithMultipleLayer(t *testing.T) {
@@ -18,15 +20,15 @@ func TestMapInterfaceWithMultipleLayer(t *testing.T) {
 		},
 	}
 
-	if err := Map(&m1, m2, WithOverride); err != nil {
-		t.Fatalf("Error merging: %v", err)
+	if err := mergo.Map(&m1, m2, mergo.WithOverride); err != nil {
+		t.Errorf("Error merging: %v", err)
 	}
 
 	// Check overwrite of sub map works
 	expected := "v2"
 	actual := m1["k1"].(map[string]interface{})["k1.1"].(string)
 	if actual != expected {
-		t.Fatalf("Expected %v but got %v",
+		t.Errorf("Expected %v but got %v",
 			expected,
 			actual)
 	}
@@ -35,7 +37,7 @@ func TestMapInterfaceWithMultipleLayer(t *testing.T) {
 	expected = "v3"
 	actual = m1["k1"].(map[string]interface{})["k1.2"].(string)
 	if actual != expected {
-		t.Fatalf("Expected %v but got %v",
+		t.Errorf("Expected %v but got %v",
 			expected,
 			actual)
 	}

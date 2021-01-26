@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mergo
+package mergo_test
 
 import (
 	"io/ioutil"
@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/imdatngo/mergo"
 	"gopkg.in/yaml.v2"
 )
 
@@ -75,7 +76,9 @@ func TestKb(t *testing.T) {
 	expected.Name = "B"
 	expected.KeyValue = ekv
 
-	Merge(&b, a)
+	if err := mergo.Merge(&b, a); err != nil {
+		t.Error(err)
+	}
 
 	if !reflect.DeepEqual(b, expected) {
 		t.Errorf("Actual: %#v did not match \nExpected: %#v", b, expected)
@@ -83,7 +86,7 @@ func TestKb(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
-	if err := Merge(nil, nil); err != ErrNilArguments {
+	if err := mergo.Merge(nil, nil); err != mergo.ErrNilArguments {
 		t.Fail()
 	}
 }
@@ -91,7 +94,7 @@ func TestNil(t *testing.T) {
 func TestDifferentTypes(t *testing.T) {
 	a := simpleTest{42}
 	b := 42
-	if err := Merge(&a, b); err != ErrDifferentArgumentsTypes {
+	if err := mergo.Merge(&a, b); err != mergo.ErrDifferentArgumentsTypes {
 		t.Fail()
 	}
 }
@@ -99,11 +102,11 @@ func TestDifferentTypes(t *testing.T) {
 func TestSimpleStruct(t *testing.T) {
 	a := simpleTest{}
 	b := simpleTest{42}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.Value != 42 {
-		t.Fatalf("b not merged in properly: a.Value(%d) != b.Value(%d)", a.Value, b.Value)
+		t.Errorf("b not merged in properly: a.Value(%d) != b.Value(%d)", a.Value, b.Value)
 	}
 	if !reflect.DeepEqual(a, b) {
 		t.FailNow()
@@ -114,17 +117,17 @@ func TestComplexStruct(t *testing.T) {
 	a := complexTest{}
 	a.ID = "athing"
 	b := complexTest{simpleTest{42}, 1, "bthing"}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.St.Value != 42 {
-		t.Fatalf("b not merged in properly: a.St.Value(%d) != b.St.Value(%d)", a.St.Value, b.St.Value)
+		t.Errorf("b not merged in properly: a.St.Value(%d) != b.St.Value(%d)", a.St.Value, b.St.Value)
 	}
 	if a.sz == 1 {
-		t.Fatalf("a's private field sz not preserved from merge: a.sz(%d) == b.sz(%d)", a.sz, b.sz)
+		t.Errorf("a's private field sz not preserved from merge: a.sz(%d) == b.sz(%d)", a.sz, b.sz)
 	}
 	if a.ID == b.ID {
-		t.Fatalf("a's field ID merged unexpectedly: a.ID(%s) == b.ID(%s)", a.ID, b.ID)
+		t.Errorf("a's field ID merged unexpectedly: a.ID(%s) == b.ID(%s)", a.ID, b.ID)
 	}
 }
 
@@ -133,12 +136,12 @@ func TestComplexStructWithOverwrite(t *testing.T) {
 	b := complexTest{simpleTest{42}, 2, ""}
 
 	expect := complexTest{simpleTest{42}, 1, "do-not-overwrite-with-empty-value"}
-	if err := MergeWithOverwrite(&a, b); err != nil {
+	if err := mergo.MergeWithOverwrite(&a, b); err != nil {
 		t.FailNow()
 	}
 
 	if !reflect.DeepEqual(a, expect) {
-		t.Fatalf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", a, expect)
+		t.Errorf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", a, expect)
 	}
 }
 
@@ -147,11 +150,11 @@ func TestPointerStruct(t *testing.T) {
 	s2 := simpleTest{19}
 	a := pointerTest{&s1}
 	b := pointerTest{&s2}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.C.Value != b.C.Value {
-		t.Fatalf("b not merged in properly: a.C.Value(%d) != b.C.Value(%d)", a.C.Value, b.C.Value)
+		t.Errorf("b not merged in properly: a.C.Value(%d) != b.C.Value(%d)", a.C.Value, b.C.Value)
 	}
 }
 
@@ -205,7 +208,7 @@ func TestEmbeddedStruct(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := Merge(&test.dst, test.src)
+		err := mergo.Merge(&test.dst, test.src)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 			continue
@@ -219,54 +222,54 @@ func TestEmbeddedStruct(t *testing.T) {
 func TestPointerStructNil(t *testing.T) {
 	a := pointerTest{nil}
 	b := pointerTest{&simpleTest{19}}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.C.Value != b.C.Value {
-		t.Fatalf("b not merged in a properly: a.C.Value(%d) != b.C.Value(%d)", a.C.Value, b.C.Value)
+		t.Errorf("b not merged in a properly: a.C.Value(%d) != b.C.Value(%d)", a.C.Value, b.C.Value)
 	}
 }
 
-func testSlice(t *testing.T, a []int, b []int, e []int, opts ...func(*Config)) {
+func testSlice(t *testing.T, a []int, b []int, e []int, opts ...func(*mergo.Config)) {
 	t.Helper()
 	bc := b
 
 	sa := sliceTest{a}
 	sb := sliceTest{b}
-	if err := Merge(&sa, sb, opts...); err != nil {
+	if err := mergo.Merge(&sa, sb, opts...); err != nil {
 		t.FailNow()
 	}
 	if !reflect.DeepEqual(sb.S, bc) {
-		t.Fatalf("Source slice was modified %d != %d", sb.S, bc)
+		t.Errorf("Source slice was modified %d != %d", sb.S, bc)
 	}
 	if !reflect.DeepEqual(sa.S, e) {
-		t.Fatalf("b not merged in a proper way %d != %d", sa.S, e)
+		t.Errorf("b not merged in a proper way %d != %d", sa.S, e)
 	}
 
 	ma := map[string][]int{"S": a}
 	mb := map[string][]int{"S": b}
-	if err := Merge(&ma, mb, opts...); err != nil {
+	if err := mergo.Merge(&ma, mb, opts...); err != nil {
 		t.FailNow()
 	}
 	if !reflect.DeepEqual(mb["S"], bc) {
-		t.Fatalf("map value: Source slice was modified %d != %d", mb["S"], bc)
+		t.Errorf("map value: Source slice was modified %d != %d", mb["S"], bc)
 	}
 	if !reflect.DeepEqual(ma["S"], e) {
-		t.Fatalf("map value: b not merged in a proper way %d != %d", ma["S"], e)
+		t.Errorf("map value: b not merged in a proper way %d != %d", ma["S"], e)
 	}
 
 	if a == nil {
 		// test case with missing dst key
 		ma := map[string][]int{}
 		mb := map[string][]int{"S": b}
-		if err := Merge(&ma, mb); err != nil {
+		if err := mergo.Merge(&ma, mb); err != nil {
 			t.FailNow()
 		}
 		if !reflect.DeepEqual(mb["S"], bc) {
-			t.Fatalf("missing dst key: Source slice was modified %d != %d", mb["S"], bc)
+			t.Errorf("missing dst key: Source slice was modified %d != %d", mb["S"], bc)
 		}
 		if !reflect.DeepEqual(ma["S"], e) {
-			t.Fatalf("missing dst key: b not merged in a proper way %d != %d", ma["S"], e)
+			t.Errorf("missing dst key: b not merged in a proper way %d != %d", ma["S"], e)
 		}
 	}
 
@@ -274,14 +277,14 @@ func testSlice(t *testing.T, a []int, b []int, e []int, opts ...func(*Config)) {
 		// test case with missing src key
 		ma := map[string][]int{"S": a}
 		mb := map[string][]int{}
-		if err := Merge(&ma, mb); err != nil {
+		if err := mergo.Merge(&ma, mb); err != nil {
 			t.FailNow()
 		}
 		if !reflect.DeepEqual(mb["S"], bc) {
-			t.Fatalf("missing src key: Source slice was modified %d != %d", mb["S"], bc)
+			t.Errorf("missing src key: Source slice was modified %d != %d", mb["S"], bc)
 		}
 		if !reflect.DeepEqual(ma["S"], e) {
-			t.Fatalf("missing src key: b not merged in a proper way %d != %d", ma["S"], e)
+			t.Errorf("missing src key: b not merged in a proper way %d != %d", ma["S"], e)
 		}
 	}
 }
@@ -292,12 +295,12 @@ func TestSlice(t *testing.T) {
 	testSlice(t, []int{1}, []int{2, 3}, []int{1})
 	testSlice(t, []int{1}, []int{}, []int{1})
 	testSlice(t, []int{1}, nil, []int{1})
-	testSlice(t, nil, []int{1, 2, 3}, []int{1, 2, 3}, WithAppendSlice)
-	testSlice(t, []int{}, []int{1, 2, 3}, []int{1, 2, 3}, WithAppendSlice)
-	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, WithAppendSlice)
-	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, WithAppendSlice, WithOverride)
-	testSlice(t, []int{1}, []int{}, []int{1}, WithAppendSlice)
-	testSlice(t, []int{1}, nil, []int{1}, WithAppendSlice)
+	testSlice(t, nil, []int{1, 2, 3}, []int{1, 2, 3}, mergo.WithAppendSlice)
+	testSlice(t, []int{}, []int{1, 2, 3}, []int{1, 2, 3}, mergo.WithAppendSlice)
+	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, mergo.WithAppendSlice)
+	testSlice(t, []int{1}, []int{2, 3}, []int{1, 2, 3}, mergo.WithAppendSlice, mergo.WithOverride)
+	testSlice(t, []int{1}, []int{}, []int{1}, mergo.WithAppendSlice)
+	testSlice(t, []int{1}, nil, []int{1}, mergo.WithAppendSlice)
 }
 
 func TestEmptyMaps(t *testing.T) {
@@ -305,7 +308,7 @@ func TestEmptyMaps(t *testing.T) {
 	b := mapTest{
 		map[int]int{},
 	}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.Fail()
 	}
 	if !reflect.DeepEqual(a, b) {
@@ -316,7 +319,7 @@ func TestEmptyMaps(t *testing.T) {
 func TestEmptyToEmptyMaps(t *testing.T) {
 	a := mapTest{}
 	b := mapTest{}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.Fail()
 	}
 	if !reflect.DeepEqual(a, b) {
@@ -336,7 +339,7 @@ func TestEmptyToNotEmptyMaps(t *testing.T) {
 	b := mapTest{
 		map[int]int{},
 	}
-	if err := Merge(&a, b); err != nil {
+	if err := mergo.Merge(&a, b); err != nil {
 		t.Fail()
 	}
 	if !reflect.DeepEqual(a, aa) {
@@ -347,7 +350,7 @@ func TestEmptyToNotEmptyMaps(t *testing.T) {
 func TestMapsWithOverwrite(t *testing.T) {
 	m := map[string]simpleTest{
 		"a": {},   // overwritten by 16
-		"b": {42}, // not overwritten by empty value
+		"b": {42}, // overwritten by 0, as map Value is not addressable and it doesn't check for b is set or not set in `n`
 		"c": {13}, // overwritten by 12
 		"d": {61},
 	}
@@ -365,15 +368,175 @@ func TestMapsWithOverwrite(t *testing.T) {
 		"e": {14},
 	}
 
-	if err := MergeWithOverwrite(&m, n); err != nil {
-		t.Fatalf(err.Error())
+	if err := mergo.MergeWithOverwrite(&m, n); err != nil {
+		t.Errorf(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
-		t.Fatalf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", m, expect)
+		t.Errorf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", m, expect)
 	}
 }
 
+func TestMapWithEmbeddedStructPointer(t *testing.T) {
+	m := map[string]*simpleTest{
+		"a": {},   // overwritten by 16
+		"b": {42}, // not overwritten by empty value
+		"c": {13}, // overwritten by 12
+		"d": {61},
+	}
+	n := map[string]*simpleTest{
+		"a": {16},
+		"b": {},
+		"c": {12},
+		"e": {14},
+	}
+	expect := map[string]*simpleTest{
+		"a": {16},
+		"b": {42},
+		"c": {12},
+		"d": {61},
+		"e": {14},
+	}
+
+	if err := mergo.Merge(&m, n, mergo.WithOverride); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if !reflect.DeepEqual(m, expect) {
+		t.Errorf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", m, expect)
+	}
+}
+
+func TestMergeUsingStructAndMap(t *testing.T) {
+	type multiPtr struct {
+		Text   string
+		Number int
+	}
+	type final struct {
+		Msg1 string
+		Msg2 string
+	}
+	type params struct {
+		Name  string
+		Multi *multiPtr
+		Final *final
+	}
+	type config struct {
+		Foo    string
+		Bar    string
+		Params *params
+	}
+
+	cases := []struct {
+		name      string
+		overwrite bool
+		changes   *config
+		target    *config
+		output    *config
+	}{
+		{
+			name:      "Should overwrite values in target for non-nil values in source",
+			overwrite: true,
+			changes: &config{
+				Bar: "from changes",
+				Params: &params{
+					Final: &final{
+						Msg1: "from changes",
+						Msg2: "from changes",
+					},
+				},
+			},
+			target: &config{
+				Foo: "from target",
+				Params: &params{
+					Name: "from target",
+					Multi: &multiPtr{
+						Text:   "from target",
+						Number: 5,
+					},
+					Final: &final{
+						Msg1: "from target",
+						Msg2: "",
+					},
+				},
+			},
+			output: &config{
+				Foo: "from target",
+				Bar: "from changes",
+				Params: &params{
+					Name: "from target",
+					Multi: &multiPtr{
+						Text:   "from target",
+						Number: 5,
+					},
+					Final: &final{
+						Msg1: "from changes",
+						Msg2: "from changes",
+					},
+				},
+			},
+		},
+		{
+			name:      "Should not overwrite values in target for non-nil values in source",
+			overwrite: false,
+			changes: &config{
+				Bar: "from changes",
+				Params: &params{
+					Final: &final{
+						Msg1: "from changes",
+						Msg2: "from changes",
+					},
+				},
+			},
+			target: &config{
+				Foo: "from target",
+				Params: &params{
+					Name: "from target",
+					Multi: &multiPtr{
+						Text:   "from target",
+						Number: 5,
+					},
+					Final: &final{
+						Msg1: "from target",
+						Msg2: "",
+					},
+				},
+			},
+			output: &config{
+				Foo: "from target",
+				Bar: "from changes",
+				Params: &params{
+					Name: "from target",
+					Multi: &multiPtr{
+						Text:   "from target",
+						Number: 5,
+					},
+					Final: &final{
+						Msg1: "from target",
+						Msg2: "from changes",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			if tc.overwrite {
+				err = mergo.Merge(tc.target, *tc.changes, mergo.WithOverride)
+			} else {
+				err = mergo.Merge(tc.target, *tc.changes)
+			}
+			if err != nil {
+				t.Error(err)
+			}
+			if !reflect.DeepEqual(tc.target, tc.output) {
+				t.Errorf("Test failed:\ngot  :\n%+v\n\nwant :\n%+v\n\n", tc.target.Params, tc.output.Params)
+			}
+		})
+	}
+}
 func TestMaps(t *testing.T) {
 	m := map[string]simpleTest{
 		"a": {},
@@ -395,21 +558,21 @@ func TestMaps(t *testing.T) {
 		"e": {14},
 	}
 
-	if err := Merge(&m, n); err != nil {
-		t.Fatalf(err.Error())
+	if err := mergo.Merge(&m, n); err != nil {
+		t.Errorf(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
-		t.Fatalf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", m, expect)
+		t.Errorf("Test failed:\ngot  :\n%#v\n\nwant :\n%#v\n\n", m, expect)
 	}
 	if m["a"].Value != 0 {
-		t.Fatalf(`n merged in m because I solved non-addressable map values TODO: m["a"].Value(%d) != n["a"].Value(%d)`, m["a"].Value, n["a"].Value)
+		t.Errorf(`n merged in m because I solved non-addressable map values TODO: m["a"].Value(%d) != n["a"].Value(%d)`, m["a"].Value, n["a"].Value)
 	}
 	if m["b"].Value != 42 {
-		t.Fatalf(`n wrongly merged in m: m["b"].Value(%d) != n["b"].Value(%d)`, m["b"].Value, n["b"].Value)
+		t.Errorf(`n wrongly merged in m: m["b"].Value(%d) != n["b"].Value(%d)`, m["b"].Value, n["b"].Value)
 	}
 	if m["c"].Value != 13 {
-		t.Fatalf(`n overwritten in m: m["c"].Value(%d) != n["c"].Value(%d)`, m["c"].Value, n["c"].Value)
+		t.Errorf(`n overwritten in m: m["c"].Value(%d) != n["c"].Value(%d)`, m["c"].Value, n["c"].Value)
 	}
 }
 
@@ -428,12 +591,12 @@ func TestMapsWithNilPointer(t *testing.T) {
 		"c": nil,
 	}
 
-	if err := Merge(&m, n, WithOverride); err != nil {
-		t.Fatalf(err.Error())
+	if err := mergo.Merge(&m, n, mergo.WithOverride); err != nil {
+		t.Errorf(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
-		t.Fatalf("Test failed:\ngot   :\n%#v\n\nwant :\n%#v\n\n", m, expect)
+		t.Errorf("Test failed:\ngot   :\n%#v\n\nwant :\n%#v\n\n", m, expect)
 	}
 }
 
@@ -444,24 +607,24 @@ func TestYAMLMaps(t *testing.T) {
 	fl := license["fields"].(map[interface{}]interface{})
 	// license has one extra field (site) and another already existing in thing (author) that Mergo won't override.
 	expectedLength := len(ft) + len(fl) - 1
-	if err := Merge(&license, thing); err != nil {
-		t.Fatal(err.Error())
+	if err := mergo.Merge(&license, thing); err != nil {
+		t.Error(err.Error())
 	}
 	currentLength := len(license["fields"].(map[interface{}]interface{}))
 	if currentLength != expectedLength {
-		t.Fatalf(`thing not merged in license properly, license must have %d elements instead of %d`, expectedLength, currentLength)
+		t.Errorf(`thing not merged in license properly, license must have %d elements instead of %d`, expectedLength, currentLength)
 	}
 	fields := license["fields"].(map[interface{}]interface{})
 	if _, ok := fields["id"]; !ok {
-		t.Fatalf(`thing not merged in license properly, license must have a new id field from thing`)
+		t.Errorf(`thing not merged in license properly, license must have a new id field from thing`)
 	}
 }
 
 func TestTwoPointerValues(t *testing.T) {
 	a := &simpleTest{}
 	b := &simpleTest{42}
-	if err := Merge(a, b); err != nil {
-		t.Fatalf(`Boom. You crossed the streams: %s`, err)
+	if err := mergo.Merge(a, b); err != nil {
+		t.Errorf(`Boom. You crossed the streams: %s`, err)
 	}
 }
 
@@ -481,7 +644,7 @@ func TestMap(t *testing.T) {
 		"zt": simpleTest{299},  // Mapping a missing field (zt doesn't exist)
 		"nt": simpleTest{3},
 	}
-	if err := Map(&c, b); err != nil {
+	if err := mergo.Map(&c, b); err != nil {
 		t.FailNow()
 	}
 	m := b["ct"].(map[string]interface{})
@@ -489,19 +652,19 @@ func TestMap(t *testing.T) {
 	o := b["st"].(*simpleTest)
 	p := b["nt"].(simpleTest)
 	if c.Ct.St.Value != 42 {
-		t.Fatalf("b not merged in properly: c.Ct.St.Value(%d) != b.Ct.St.Value(%d)", c.Ct.St.Value, n["value"])
+		t.Errorf("b not merged in properly: c.Ct.St.Value(%d) != b.Ct.St.Value(%d)", c.Ct.St.Value, n["value"])
 	}
 	if c.St.Value != 144 {
-		t.Fatalf("b not merged in properly: c.St.Value(%d) != b.St.Value(%d)", c.St.Value, o.Value)
+		t.Errorf("b not merged in properly: c.St.Value(%d) != b.St.Value(%d)", c.St.Value, o.Value)
 	}
 	if c.Nt.Value != 3 {
-		t.Fatalf("b not merged in properly: c.Nt.Value(%d) != b.Nt.Value(%d)", c.St.Value, p.Value)
+		t.Errorf("b not merged in properly: c.Nt.Value(%d) != b.Nt.Value(%d)", c.St.Value, p.Value)
 	}
 	if c.Ct.sz == 1 {
-		t.Fatalf("a's private field sz not preserved from merge: c.Ct.sz(%d) == b.Ct.sz(%d)", c.Ct.sz, m["sz"])
+		t.Errorf("a's private field sz not preserved from merge: c.Ct.sz(%d) == b.Ct.sz(%d)", c.Ct.sz, m["sz"])
 	}
 	if c.Ct.ID == m["id"] {
-		t.Fatalf("a's field ID merged unexpectedly: c.Ct.ID(%s) == b.Ct.ID(%s)", c.Ct.ID, m["id"])
+		t.Errorf("a's field ID merged unexpectedly: c.Ct.ID(%s) == b.Ct.ID(%s)", c.Ct.ID, m["id"])
 	}
 }
 
@@ -510,22 +673,22 @@ func TestSimpleMap(t *testing.T) {
 	b := map[string]interface{}{
 		"value": 42,
 	}
-	if err := Map(&a, b); err != nil {
+	if err := mergo.Map(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.Value != 42 {
-		t.Fatalf("b not merged in properly: a.Value(%d) != b.Value(%v)", a.Value, b["value"])
+		t.Errorf("b not merged in properly: a.Value(%d) != b.Value(%v)", a.Value, b["value"])
 	}
 }
 
 func TestIfcMap(t *testing.T) {
 	a := ifcTest{}
 	b := ifcTest{42}
-	if err := Map(&a, b); err != nil {
+	if err := mergo.Map(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.I != 42 {
-		t.Fatalf("b not merged in properly: a.I(%d) != b.I(%d)", a.I, b.I)
+		t.Errorf("b not merged in properly: a.I(%d) != b.I(%d)", a.I, b.I)
 	}
 	if !reflect.DeepEqual(a, b) {
 		t.FailNow()
@@ -535,22 +698,22 @@ func TestIfcMap(t *testing.T) {
 func TestIfcMapNoOverwrite(t *testing.T) {
 	a := ifcTest{13}
 	b := ifcTest{42}
-	if err := Map(&a, b); err != nil {
+	if err := mergo.Map(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.I != 13 {
-		t.Fatalf("a not left alone: a.I(%d) == b.I(%d)", a.I, b.I)
+		t.Errorf("a not left alone: a.I(%d) == b.I(%d)", a.I, b.I)
 	}
 }
 
 func TestIfcMapWithOverwrite(t *testing.T) {
 	a := ifcTest{13}
 	b := ifcTest{42}
-	if err := MapWithOverwrite(&a, b); err != nil {
+	if err := mergo.MapWithOverwrite(&a, b); err != nil {
 		t.FailNow()
 	}
 	if a.I != 42 {
-		t.Fatalf("b not merged in properly: a.I(%d) != b.I(%d)", a.I, b.I)
+		t.Errorf("b not merged in properly: a.I(%d) != b.I(%d)", a.I, b.I)
 	}
 	if !reflect.DeepEqual(a, b) {
 		t.FailNow()
@@ -566,7 +729,7 @@ type pointerMapTest struct {
 func TestBackAndForth(t *testing.T) {
 	pt := pointerMapTest{42, 1, &simpleTest{66}}
 	m := make(map[string]interface{})
-	if err := Map(&m, pt); err != nil {
+	if err := mergo.Map(&m, pt); err != nil {
 		t.FailNow()
 	}
 	var (
@@ -574,27 +737,27 @@ func TestBackAndForth(t *testing.T) {
 		ok bool
 	)
 	if v, ok = m["a"]; v.(int) != pt.A || !ok {
-		t.Fatalf("pt not merged in properly: m[`a`](%d) != pt.A(%d)", v, pt.A)
+		t.Errorf("pt not merged in properly: m[`a`](%d) != pt.A(%d)", v, pt.A)
 	}
 	if v, ok = m["b"]; !ok {
-		t.Fatalf("pt not merged in properly: B is missing in m")
+		t.Errorf("pt not merged in properly: B is missing in m")
 	}
 	var st *simpleTest
 	if st = v.(*simpleTest); st.Value != 66 {
-		t.Fatalf("something went wrong while mapping pt on m, B wasn't copied")
+		t.Errorf("something went wrong while mapping pt on m, B wasn't copied")
 	}
 	bpt := pointerMapTest{}
-	if err := Map(&bpt, m); err != nil {
-		t.Fatal(err)
+	if err := mergo.Map(&bpt, m); err != nil {
+		t.Error(err)
 	}
 	if bpt.A != pt.A {
-		t.Fatalf("pt not merged in properly: bpt.A(%d) != pt.A(%d)", bpt.A, pt.A)
+		t.Errorf("pt not merged in properly: bpt.A(%d) != pt.A(%d)", bpt.A, pt.A)
 	}
 	if bpt.hidden == pt.hidden {
-		t.Fatalf("pt unexpectedly merged: bpt.hidden(%d) == pt.hidden(%d)", bpt.hidden, pt.hidden)
+		t.Errorf("pt unexpectedly merged: bpt.hidden(%d) == pt.hidden(%d)", bpt.hidden, pt.hidden)
 	}
 	if bpt.B.Value != pt.B.Value {
-		t.Fatalf("pt not merged in properly: bpt.B.Value(%d) != pt.B.Value(%d)", bpt.B.Value, pt.B.Value)
+		t.Errorf("pt not merged in properly: bpt.B.Value(%d) != pt.B.Value(%d)", bpt.B.Value, pt.B.Value)
 	}
 }
 
@@ -611,11 +774,11 @@ func TestEmbeddedPointerUnpacking(t *testing.T) {
 	}
 	for _, test := range tests {
 		pt := test.input
-		if err := MapWithOverwrite(&pt, m); err != nil {
+		if err := mergo.MapWithOverwrite(&pt, m); err != nil {
 			t.FailNow()
 		}
 		if pt.B.Value != newValue {
-			t.Fatalf("pt not mapped properly: pt.A.Value(%d) != m[`b`][`value`](%d)", pt.B.Value, newValue)
+			t.Errorf("pt not mapped properly: pt.A.Value(%d) != m[`b`][`value`](%d)", pt.B.Value, newValue)
 		}
 
 	}
@@ -634,21 +797,21 @@ func TestTime(t *testing.T) {
 		"Birth": &now,
 	}
 	b := structWithTimePointer{}
-	if err := Merge(&b, dataStruct); err != nil {
+	if err := mergo.Merge(&b, dataStruct); err != nil {
 		t.FailNow()
 	}
 	if b.Birth.IsZero() {
-		t.Fatalf("time.Time not merged in properly: b.Birth(%v) != dataStruct['Birth'](%v)", b.Birth, dataStruct.Birth)
+		t.Errorf("time.Time not merged in properly: b.Birth(%v) != dataStruct['Birth'](%v)", b.Birth, dataStruct.Birth)
 	}
 	if b.Birth != dataStruct.Birth {
-		t.Fatalf("time.Time not merged in properly: b.Birth(%v) != dataStruct['Birth'](%v)", b.Birth, dataStruct.Birth)
+		t.Errorf("time.Time not merged in properly: b.Birth(%v) != dataStruct['Birth'](%v)", b.Birth, dataStruct.Birth)
 	}
 	b = structWithTimePointer{}
-	if err := Map(&b, dataMap); err != nil {
+	if err := mergo.Map(&b, dataMap); err != nil {
 		t.FailNow()
 	}
 	if b.Birth.IsZero() {
-		t.Fatalf("time.Time not merged in properly: b.Birth(%v) != dataMap['Birth'](%v)", b.Birth, dataMap["Birth"])
+		t.Errorf("time.Time not merged in properly: b.Birth(%v) != dataMap['Birth'](%v)", b.Birth, dataMap["Birth"])
 	}
 }
 
@@ -673,11 +836,11 @@ func TestNestedPtrValueInMap(t *testing.T) {
 			"x": {},
 		},
 	}
-	if err := Map(dst, src); err != nil {
+	if err := mergo.Map(dst, src); err != nil {
 		t.FailNow()
 	}
 	if dst.NestedPtrValue["x"].A == 0 {
-		t.Fatalf("Nested Ptr value not merged in properly: dst.NestedPtrValue[\"x\"].A(%v) != src.NestedPtrValue[\"x\"].A(%v)", dst.NestedPtrValue["x"].A, src.NestedPtrValue["x"].A)
+		t.Errorf("Nested Ptr value not merged in properly: dst.NestedPtrValue[\"x\"].A(%v) != src.NestedPtrValue[\"x\"].A(%v)", dst.NestedPtrValue["x"].A, src.NestedPtrValue["x"].A)
 	}
 }
 
@@ -708,7 +871,7 @@ func TestUnexportedProperty(t *testing.T) {
 			t.Errorf("Should not have panicked")
 		}
 	}()
-	Merge(&a, b)
+	mergo.Merge(&a, b)
 }
 
 type structWithBoolPointer struct {
@@ -723,31 +886,31 @@ func TestBooleanPointer(t *testing.T) {
 	dst := structWithBoolPointer{
 		&bf,
 	}
-	if err := Merge(&dst, src); err != nil {
+	if err := mergo.Merge(&dst, src); err != nil {
 		t.FailNow()
 	}
 	if dst.C == src.C {
-		t.Fatalf("dst.C should be a different pointer than src.C")
+		t.Errorf("dst.C should be a different pointer than src.C")
 	}
 	if *dst.C != *src.C {
-		t.Fatalf("dst.C should be true")
+		t.Errorf("dst.C should be true")
 	}
 }
 
 func TestMergeMapWithInnerSliceOfDifferentType(t *testing.T) {
 	testCases := []struct {
 		name    string
-		options []func(*Config)
+		options []func(*mergo.Config)
 		err     string
 	}{
 		{
 			"With override and append slice",
-			[]func(*Config){WithOverride, WithAppendSlice},
+			[]func(*mergo.Config){mergo.WithOverride, mergo.WithAppendSlice},
 			"cannot append two slices with different type",
 		},
 		{
 			"With override and type check",
-			[]func(*Config){WithOverride, WithTypeCheck},
+			[]func(*mergo.Config){mergo.WithOverride, mergo.WithTypeCheck},
 			"cannot override two slices with different type",
 		},
 	}
@@ -760,8 +923,8 @@ func TestMergeMapWithInnerSliceOfDifferentType(t *testing.T) {
 				"foo": []int{1, 2},
 			}
 
-			if err := Merge(&src, &dst, tc.options...); err == nil || !strings.Contains(err.Error(), tc.err) {
-				t.Fatalf("expected %q, got %q", tc.err, err)
+			if err := mergo.Merge(&src, &dst, tc.options...); err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("expected %q, got %q", tc.err, err)
 			}
 		})
 	}
@@ -771,8 +934,8 @@ func TestMergeSlicesIsNotSupported(t *testing.T) {
 	src := []string{"a", "b"}
 	dst := []int{1, 2}
 
-	if err := Merge(&src, &dst, WithOverride, WithAppendSlice); err != ErrNotSupported {
-		t.Fatalf("expected %q, got %q", ErrNotSupported, err)
+	if err := mergo.Merge(&src, &dst, mergo.WithOverride, mergo.WithAppendSlice); err != mergo.ErrNotSupported {
+		t.Errorf("expected %q, got %q", mergo.ErrNotSupported, err)
 	}
 }
 
@@ -807,7 +970,7 @@ func TestMapWithJSONTagLookup(t *testing.T) {
 		Pointer:      &teststr,
 	}
 
-	if err := Map(&dstStruct, scrMap, WithJSONTagLookup); err != nil {
+	if err := mergo.Map(&dstStruct, scrMap, mergo.WithJSONTagLookup); err != nil {
 		t.FailNow()
 	}
 	if !reflect.DeepEqual(dstStruct, expectStruct) {
@@ -829,7 +992,7 @@ func TestMapWithJSONTagLookup(t *testing.T) {
 		"EmptyJSONTag":  "empty",
 	}
 
-	if err := Map(&dstMap, srcStruct, WithJSONTagLookup); err != nil {
+	if err := mergo.Map(&dstMap, srcStruct, mergo.WithJSONTagLookup); err != nil {
 		t.FailNow()
 	}
 	if !reflect.DeepEqual(dstMap, expectMap) {

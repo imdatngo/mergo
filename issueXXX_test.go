@@ -1,7 +1,9 @@
-package mergo
+package mergo_test
 
 import (
 	"testing"
+
+	"github.com/imdatngo/mergo"
 )
 
 var testDataS = []struct {
@@ -17,16 +19,18 @@ var testDataS = []struct {
 
 func TestMergeSliceWithOverrideWithAppendSlice(t *testing.T) {
 	for _, data := range testDataS {
-		err := Merge(&data.S2, data.S1, WithOverride, WithAppendSlice)
+		err := mergo.Merge(&data.S2, data.S1, mergo.WithOverride, mergo.WithAppendSlice)
 		if err != nil {
 			t.Errorf("Error while merging %s", err)
 		}
+
 		if len(data.S2.Books) != len(data.ExpectedSlice) {
-			t.Fatalf("Got %d elements in slice, but expected %d", len(data.S2.Books), len(data.ExpectedSlice))
+			t.Errorf("Got %d elements in slice, but expected %d", len(data.S2.Books), len(data.ExpectedSlice))
 		}
+
 		for i, val := range data.S2.Books {
 			if val != data.ExpectedSlice[i] {
-				t.Fatalf("Expected %s, but got %s while merging slice with override", data.ExpectedSlice[i], val)
+				t.Errorf("Expected %s, but got %s while merging slice with override", data.ExpectedSlice[i], val)
 			}
 		}
 	}
